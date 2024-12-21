@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import random
-
 # ПАРАМЕТРЫ ЗАДАВАЕМЫЕ РАБОТОДАТЕЛЕМ
 CNT_OF_BUS = 10  # к-во автобусов
 T_GLOBAL_COURSE = 20 * 60  #время работы автобусов (если круглосуточно - устанавливаем значение 24*60)
@@ -75,8 +74,10 @@ class Driver:
                 raise Exception(f"Автобусов не хватило. Водитель {self.id} остался без автобуса.")
 
     def pr_info(self):
-        print(f"id:{self.id} автобус:{self.bus} {self.dr_type}   нач: {convert_min(self.start_work_time)}    "
-              f"пересмена: {convert_min(self.end_work_time)}      обеды/перерывы:{[convert_min(m) for m in self.lunch_times]}      "
+        print(f"id:{self.id} автобус:{self.bus} {self.dr_type}   "
+              f"нач: {convert_min(self.start_work_time)}    "
+              f"пересмена: {convert_min(self.end_work_time)}      "
+              f"обеды/перерывы:{[convert_min(m) for m in self.lunch_times]}      "
               f"прохождение 0ой остановки:{[convert_min(m) for m in self.zero_point_times]}")
 
 
@@ -372,13 +373,11 @@ def print_statistic():
 
 def main_function():
     global drivers, I_lunch_times, zero_schedule
-    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(18, 10))  # Ширина 12 дюймов, высота 4 дюйма
+    fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(18, 10))
     axes[0].add_patch(plt.Rectangle((RH_MORNING_START, 0), RH_LONG, CNT_STOPS + 1, color='gray', alpha=0.5))
     axes[0].add_patch(plt.Rectangle((RH_EVENING_START, 0), RH_LONG, CNT_STOPS + 1, color='gray', alpha=0.5))
     axes[0].add_patch(plt.Rectangle((ST_LUNCH, 0), END_LUNCH - ST_LUNCH, CNT_STOPS + 1, color='green', alpha=0.5))
-    #random.seed(678)
-    #random.seed(675)
-    random.seed(673)
+    random.seed(673) #нужен только для одинаковых цветов графика
     # MAIN BODY########################################################################
     hire_first_driver()
     hire_first_group()
@@ -388,9 +387,9 @@ def main_function():
     print_stop_shedule(2)
     # END MAIN BODY####################################################################
     for dr in drivers:
-        draw_driver_schedule(dr, axes[0])
+        #draw_driver_schedule(dr, axes[0])
         dr.pr_info()
-    ###under that line code draw a graph  DONT TOUCH!!!###########################################
+    ##under that line code draw a graph ###########################################
     time_x_minutes = [30 * i for i in range(START_TIME // 30, (START_TIME + T_GLOBAL_COURSE) // 30 + 2)]
     y_stations = [i for i in range(CNT_STOPS + 2)]
     axes[0].set_xticks(time_x_minutes, [convert_min(m) for m in time_x_minutes], rotation=85,
@@ -415,3 +414,42 @@ def main_function():
 
 
 main_function()
+
+
+def calc_rh_profit(drivers_array):
+    rh_morning = 0
+    rh_evening = 0
+    period_btwn_stops = T_WAY / CNT_STOPS
+    for dr in drivers_array:
+        for t in dr.zero_point_times:
+            for i in range(CNT_STOPS):
+                if RH_MORNING_START <= t + i * period_btwn_stops <= RH_MORNING_START + RH_LONG:
+                    rh_morning += 1
+                elif RH_EVENING_START <= t + i * period_btwn_stops <= RH_EVENING_START + RH_LONG:
+                    rh_evening += 1
+    return min(rh_morning, rh_evening)
+
+
+def calculate_fitness(drivers_array):
+    fitness = calc_rh_profit(drivers_array)*5
+    max_dr = 0
+    st_dr = []
+    for dr in drivers_array:
+        if dr.start_work_time not in st_dr:
+            st_dr.append(dr.start_work_time)
+        else:
+            fitness -= 100
+    for t in range(START_TIME, START_TIME + T_GLOBAL_COURSE + 1):
+        max_dr = max(max_dr, how_much_action_drivers(t))
+        if RH_MORNING_START <= t <= RH_MORNING_START+RH_LONG or RH_EVENING_START <= t <= RH_EVENING_START+RH_LONG:
+            if how_much_action_drivers(t) < CNT_OF_BUS:
+                fitness -= 1
+        elif how_much_action_drivers(t) > MIN_BUS_ON_WAY:
+            fitness -= 1
+        if max_dr > CNT_OF_BUS:
+            fitness -= 10000
+            break
+    return fitness
+
+
+print(calculate_fitness(drivers))
